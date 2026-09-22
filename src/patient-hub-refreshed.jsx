@@ -249,6 +249,53 @@ const Fonts = () => (
       backdrop-filter: blur(2px);
     }
 
+    .ph-root .ph-modal-backdrop {
+      background:
+        radial-gradient(circle at 15% 20%, rgba(228,119,102,.28), transparent 24%),
+        radial-gradient(circle at 85% 18%, rgba(146,35,71,.22), transparent 25%),
+        radial-gradient(circle at 78% 82%, rgba(221,214,232,.65), transparent 28%),
+        linear-gradient(135deg, rgba(7,18,47,.62), rgba(146,35,71,.34));
+      backdrop-filter: blur(10px) saturate(115%);
+      -webkit-backdrop-filter: blur(10px) saturate(115%);
+      overflow: hidden;
+    }
+    .ph-root .ph-modal-decor {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .ph-root .ph-modal-decor::before,
+    .ph-root .ph-modal-decor::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(2px);
+      animation: phModalFloat 7s ease-in-out infinite;
+    }
+    .ph-root .ph-modal-decor::before {
+      width: 230px; height: 230px; left: -70px; bottom: -70px;
+      background: rgba(228,119,102,.20);
+    }
+    .ph-root .ph-modal-decor::after {
+      width: 280px; height: 280px; right: -90px; top: -90px;
+      background: rgba(221,214,232,.24); animation-delay: -2s;
+    }
+    .ph-root .ph-modal-decor span {
+      position: absolute;
+      font-family: var(--font-head);
+      color: rgba(255,255,255,.25);
+      font-size: 28px;
+      animation: phModalFloat 6s ease-in-out infinite;
+    }
+    .ph-root .ph-modal-decor span:nth-child(1){left:12%;top:18%;}
+    .ph-root .ph-modal-decor span:nth-child(2){right:14%;top:28%;font-size:38px;animation-delay:-1s;}
+    .ph-root .ph-modal-decor span:nth-child(3){left:22%;bottom:18%;font-size:22px;animation-delay:-3s;}
+    .ph-root .ph-modal-decor span:nth-child(4){right:24%;bottom:14%;animation-delay:-4s;}
+    .ph-root .ph-modal-decor span:nth-child(5){left:50%;top:9%;font-size:16px;animation-delay:-2s;}
+    .ph-root .ph-modal-backdrop > .ph-modal-enter { position: relative; z-index: 2; }
+    @keyframes phModalFloat { 0%,100%{transform:translate3d(0,0,0) rotate(0deg)} 50%{transform:translate3d(0,-12px,0) rotate(3deg)} }
+
     /* Accessible keyboard focus */
     .ph-root button:focus-visible,
     .ph-root a:focus-visible,
@@ -651,127 +698,288 @@ function HomeSection({ go }) {
 }
 
 function RemindersSection() {
-  const [items, setItems] = useState([
-    { id: 1, name: "Metformin 500mg", time: "8:00 AM", freq: "After breakfast", on: true },
-    { id: 2, name: "Blood sugar check", time: "1:30 PM", freq: "Before lunch", on: true },
-    { id: 3, name: "Glimepiride 1mg", time: "8:30 PM", freq: "After dinner", on: false },
-  ]);
-  const [draft, setDraft] = useState("");
+  const DEFAULT_REMINDERS = [
+    { id: 1, name: "Metformin 500mg", time: "8:00 AM", meal: "After food", on: true },
+    { id: 2, name: "Blood sugar check", time: "1:30 PM", meal: "Before food", on: true },
+    { id: 3, name: "Glimepiride 1mg", time: "8:30 PM", meal: "After food", on: false },
+  ];
 
-  const addReminder = () => {
-    if (!draft.trim()) return;
-    setItems([...items, { id: Date.now(), name: draft.trim(), time: "9:00 AM", freq: "Custom", on: true }]);
-    setDraft("");
+  const readReminders = () => {
+    try {
+      const saved = localStorage.getItem("carehub_reminders");
+      if (!saved) return DEFAULT_REMINDERS;
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_REMINDERS;
+    } catch {
+      return DEFAULT_REMINDERS;
+    }
+  };
+
+  const [items, setItems] = useState(readReminders);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ name: "", time: "", meal: "After food" });
+
+  useEffect(() => {
+    try { localStorage.setItem("carehub_reminders", JSON.stringify(items)); } catch {}
+  }, [items]);
+
+  const openAdd = () => {
+    setEditingId(null);
+    setForm({ name: "", time: "", meal: "After food" });
+    setModalOpen(true);
+  };
+
+  const openEdit = (item) => {
+    setEditingId(item.id);
+    setForm({ name: item.name, time: item.time, meal: item.meal || "After food" });
+    setModalOpen(true);
+  };
+
+  const saveReminder = (e) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.time) return;
+    if (editingId !== null) {
+      setItems(items.map((item) => item.id === editingId ? { ...item, ...form, name: form.name.trim() } : item));
+    } else {
+      setItems([...items, { id: Date.now(), name: form.name.trim(), time: form.time, meal: form.meal, on: true }]);
+    }
+    setModalOpen(false);
+  };
+
+  const deleteReminder = (id) => {
+    if (window.confirm("Delete this reminder?")) setItems(items.filter((item) => item.id !== id));
   };
 
   return (
     <div>
       <SectionTitle eyebrow="Stay on track" title="Reminders" sub="Medicines and checks, timed around your daily routine." />
+
       <Card className="p-5 mb-6">
-        <div className="flex gap-3">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addReminder()}
-            placeholder="Add a new reminder, e.g. Vitamin D, 9 PM"
-            className="flex-1 rounded-full px-4 py-2.5 text-sm bg-[var(--mint-soft)] outline-none focus:ring-2 focus:ring-[var(--teal)]"
-          />
-          <button onClick={addReminder} className="ph-button px-4 py-2.5 rounded-full bg-[var(--coral)] text-white flex items-center gap-1 text-sm font-semibold shadow-md hover:brightness-110 transition">
-            <Plus size={16} /> Add
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold text-sm">Medicine reminders</p>
+            <p className="text-xs text-[var(--ink-soft)] mt-1">Add, edit or remove reminders whenever your schedule changes.</p>
+          </div>
+          <button onClick={openAdd} className="ph-button px-5 py-2.5 rounded-full bg-[var(--coral)] text-white flex items-center gap-2 text-sm font-semibold shadow-md hover:brightness-110 transition">
+            <Plus size={17} /> ADD
           </button>
         </div>
       </Card>
 
       <div className="space-y-3">
+        {items.length === 0 && (
+          <Card className="p-8 text-center text-sm text-[var(--ink-soft)]">No reminders added yet. Click ADD to create one.</Card>
+        )}
         {items.map((it) => (
-          <Card key={it.id} className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: it.on ? "var(--mint-soft)" : "#f1f1f1" }}>
+          <Card key={it.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center" style={{ background: it.on ? "var(--mint-soft)" : "#f1f1f1" }}>
                 <Bell size={18} className={it.on ? "text-[var(--burgundy)]" : "text-gray-400"} />
               </div>
-              <div>
-                <p className="font-semibold text-sm">{it.name}</p>
-                <p className="text-xs text-[var(--ink-soft)]">{it.freq} · {it.time}</p>
+              <div className="min-w-0">
+                <p className="font-semibold text-sm truncate">{it.name}</p>
+                <p className="text-xs text-[var(--ink-soft)] mt-1">{it.time} · {it.meal}</p>
               </div>
             </div>
-            <Toggle checked={it.on} onChange={() => setItems(items.map((x) => (x.id === it.id ? { ...x, on: !x.on } : x)))} />
+            <div className="flex items-center gap-2 justify-end">
+              <Toggle checked={it.on} onChange={() => setItems(items.map((x) => x.id === it.id ? { ...x, on: !x.on } : x))} />
+              <button onClick={() => openEdit(it)} title="Edit reminder" className="px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--sky-soft)] hover:bg-[var(--lavender-soft)] transition">Edit</button>
+              <button onClick={() => deleteReminder(it.id)} title="Delete reminder" className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--red)] bg-[#fff0f2] hover:bg-[#ffe2e7] transition">Delete</button>
+            </div>
           </Card>
         ))}
       </div>
+
+      {modalOpen && (
+        <div className="ph-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4" onMouseDown={(e) => e.target === e.currentTarget && setModalOpen(false)}>
+          <div className="ph-modal-decor" aria-hidden="true"><span>+</span><span>♡</span><span>✦</span><span>+</span><span>•</span></div>
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-black/5 p-6 ph-modal-enter">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="ph-head text-xl font-bold">{editingId !== null ? "Edit reminder" : "Add reminder"}</p>
+                <p className="text-xs text-[var(--ink-soft)] mt-1">Set the medicine and when it should be taken.</p>
+              </div>
+              <button onClick={() => setModalOpen(false)} className="w-9 h-9 rounded-full bg-[var(--sky-soft)] flex items-center justify-center hover:bg-[var(--lavender-soft)]"><X size={18} /></button>
+            </div>
+            <form onSubmit={saveReminder} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-[var(--ink-soft)] block mb-1.5">Medicine name</label>
+                <input autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Metformin 500mg" className="w-full rounded-xl px-4 py-3 text-sm bg-[var(--sky-soft)] outline-none border border-transparent focus:border-[var(--burgundy)] focus:bg-white transition" required />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--ink-soft)] block mb-1.5">Time</label>
+                <input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} className="w-full rounded-xl px-4 py-3 text-sm bg-[var(--sky-soft)] outline-none border border-transparent focus:border-[var(--burgundy)] focus:bg-white transition" required />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--ink-soft)] block mb-1.5">When should it be taken?</label>
+                <select value={form.meal} onChange={(e) => setForm({ ...form, meal: e.target.value })} className="w-full rounded-xl px-4 py-3 text-sm bg-[var(--sky-soft)] outline-none border border-transparent focus:border-[var(--burgundy)] focus:bg-white transition">
+                  <option>Before food</option>
+                  <option>After food</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-3 rounded-xl text-sm font-semibold bg-[var(--sky-soft)] hover:bg-[var(--lavender-soft)] transition">Cancel</button>
+                <button type="submit" className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-[var(--burgundy)] hover:brightness-110 transition">{editingId !== null ? "Save changes" : "Add reminder"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function AppointmentSection() {
+  const CAPACITY = 5;
+  const MORNING_SLOTS = ["9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM"];
+  const AFTERNOON_SLOTS = ["1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM"];
   const [doctor, setDoctor] = useState(DOCTORS[0].id);
   const [slot, setSlot] = useState(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmed, setConfirmed] = useState(null);
+  const [bookings, setBookings] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("carehub_bookings") || "[]");
+      return Array.isArray(saved) ? saved : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("carehub_bookings", JSON.stringify(bookings)); } catch {}
+  }, [bookings]);
 
   const chosen = DOCTORS.find((d) => d.id === doctor);
+  const patientEmail = getStoredPatient().email;
+  const countForSlot = (time) => bookings.filter((b) => b.doctorId === doctor && b.time === time).length;
+  const alreadyBooked = (time) => bookings.some((b) => b.doctorId === doctor && b.time === time && b.patientEmail === patientEmail);
+
+  const selectDoctor = (id) => { setDoctor(id); setSlot(null); setConfirmed(null); };
+
+  const confirmBooking = () => {
+    if (!slot) return;
+    const currentCount = countForSlot(slot);
+    if (alreadyBooked(slot)) {
+      alert("You have already booked this time slot. Please choose another time.");
+      return;
+    }
+    if (currentCount >= CAPACITY) {
+      alert("This time slot is full. Please choose another slot.");
+      return;
+    }
+
+    const token = currentCount + 1;
+    const bookingId = `CH-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const booking = {
+      id: bookingId,
+      token,
+      doctorId: doctor,
+      doctorName: chosen.name,
+      time: slot,
+      session: MORNING_SLOTS.includes(slot) ? "Morning" : "Afternoon",
+      sessionRange: MORNING_SLOTS.includes(slot) ? "9:00 AM – 11:00 AM" : "1:00 PM – 4:00 PM",
+      patientEmail,
+      date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+    };
+    setBookings([...bookings, booking]);
+    setConfirmed(booking);
+  };
+
+  const SlotButton = ({ time }) => {
+    const count = countForSlot(time);
+    const full = count >= CAPACITY;
+    const mine = alreadyBooked(time);
+    const disabled = full || mine;
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setSlot(time)}
+        className={`text-left rounded-2xl border p-3 transition-all duration-200 ${
+          slot === time ? "bg-[var(--burgundy)] text-white border-[var(--burgundy)] shadow-md -translate-y-0.5" :
+          disabled ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-75" :
+          "bg-white border-[var(--sky)] hover:border-[var(--burgundy)] hover:-translate-y-0.5 hover:shadow-sm"
+        }`}
+      >
+        <p className="text-sm font-bold">{time}</p>
+        <p className={`text-[10px] mt-1 ${slot === time ? "text-white/80" : "text-[var(--ink-soft)]"}`}>
+          {mine ? "Already booked" : full ? "Full" : `${CAPACITY - count} seat${CAPACITY - count === 1 ? "" : "s"} available`}
+        </p>
+      </button>
+    );
+  };
 
   return (
-    <div>
-      <SectionTitle eyebrow="Plan ahead" title="Book an appointment" sub="Pick a doctor and a slot that works for you." />
+    <div className="ph-page">
+      <SectionTitle eyebrow="Plan ahead" title="Book an appointment" sub="Choose your doctor and reserve a convenient time slot." />
       {confirmed ? (
-        <Card className="p-8 text-center max-w-md mx-auto">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--mint-soft)" }}>
-            <Check className="text-[var(--burgundy)]" />
+        <Card className="p-8 text-center max-w-xl mx-auto ph-success">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--mint-soft)" }}>
+            <Check className="text-[var(--burgundy)]" size={30} />
           </div>
-          <p className="ph-head text-xl font-semibold mb-1">Appointment booked</p>
-          <p className="text-sm text-[var(--ink-soft)] mb-6">{chosen.name} · {slot}</p>
-          <button onClick={() => setConfirmed(false)} className="ph-button px-5 py-2 rounded-full text-sm font-semibold text-white bg-[var(--burgundy)] shadow-md hover:brightness-110 transition">Book another</button>
+          <p className="ph-head text-2xl font-bold mb-1">Appointment booking successful!</p>
+          <p className="text-sm text-[var(--ink-soft)] mb-6">Your appointment has been reserved successfully.</p>
+          <div className="grid grid-cols-2 gap-3 text-left mb-6">
+            <div className="rounded-2xl bg-[var(--sky-soft)] p-4"><p className="text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Booking ID</p><p className="font-bold text-sm mt-1 break-all">{confirmed.id}</p></div>
+            <div className="rounded-2xl bg-[var(--mint-soft)] p-4"><p className="text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Token number</p><p className="font-bold text-xl mt-1">#{confirmed.token}</p></div>
+            <div className="rounded-2xl bg-[var(--lavender-soft)] p-4"><p className="text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Expected time</p><p className="font-bold text-sm mt-1">{confirmed.time}</p></div>
+            <div className="rounded-2xl bg-[var(--peach-soft)] p-4"><p className="text-[10px] uppercase tracking-wider text-[var(--ink-soft)]">Session</p><p className="font-bold text-xs mt-1">{confirmed.session} · {confirmed.sessionRange}</p></div>
+          </div>
+          <p className="text-xs text-[var(--ink-soft)] mb-5">Doctor: <span className="font-semibold text-[var(--ink)]">{confirmed.doctorName}</span> · Date: <span className="font-semibold text-[var(--ink)]">{confirmed.date}</span></p>
+          <button type="button" onClick={() => { setConfirmed(null); setSlot(null); }} className="ph-button px-5 py-2.5 rounded-full text-sm font-semibold text-white bg-[var(--burgundy)] shadow-md hover:brightness-110 transition">View available slots</button>
         </Card>
       ) : (
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-3">
-            {DOCTORS.map((d) => (
-              <Card
-                key={d.id}
-                className={`p-4 flex items-center justify-between cursor-pointer ${doctor === d.id ? "ring-2 ring-[var(--teal)]" : ""}`}
-                onClick={() => { setDoctor(d.id); setSlot(null); }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center font-semibold" style={{ background: toneMap[d.tone].soft }}>
-                    {d.name.split(" ").slice(-1)[0][0]}
+        <div className="space-y-6">
+          <Card className="p-5">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <p className="font-semibold text-sm">Choose your doctor</p>
+                <p className="text-xs text-[var(--ink-soft)] mt-1">Swipe across on smaller screens.</p>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 text-[10px] font-semibold text-[var(--ink-soft)]"><Star size={13} className="text-amber-400" fill="currentColor" /> Rated doctors</div>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory">
+              {DOCTORS.map((d) => (
+                <button type="button" key={d.id} className={`w-[310px] shrink-0 text-left rounded-2xl border p-4 snap-start transition-all duration-200 ${doctor === d.id ? "border-[var(--burgundy)] ring-2 ring-[var(--burgundy)]/10 bg-[var(--mint-soft)]" : "border-[var(--sky)] bg-white hover:border-[var(--burgundy)] hover:-translate-y-0.5"}`} onClick={() => selectDoctor(d.id)}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center font-semibold" style={{ background: toneMap[d.tone].soft }}>{d.name.split(" ").slice(-1)[0][0]}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm leading-5 whitespace-normal break-words">{d.name}</p>
+                      <p className="text-xs text-[var(--ink-soft)] mt-0.5 leading-4 whitespace-normal">{d.spec}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="inline-flex items-center gap-1 text-xs font-medium"><Star size={12} fill="currentColor" className="text-amber-400" /> {d.rating}</span>
+                        <span className="text-[10px] text-[var(--ink-soft)]">{d.next}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-sm">{d.name}</p>
-                    <p className="text-xs text-[var(--ink-soft)]">{d.spec}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 justify-end text-xs font-medium mb-1">
-                    <Star size={13} fill="currentColor" className="text-amber-400" /> {d.rating}
-                  </div>
-                  <p className="text-xs text-[var(--ink-soft)]">{d.next}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          <Card className="p-5 h-fit">
-            <p className="font-semibold text-sm mb-1">Available slots</p>
-            <p className="text-xs text-[var(--ink-soft)] mb-4">for {chosen.name.split(" ").slice(-1)[0]}, today</p>
-            <div className="grid grid-cols-2 gap-2 mb-5">
-              {SLOTS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSlot(s)}
-                  className={`text-xs font-semibold py-2 rounded-xl border transition ${
-                    slot === s ? "bg-[var(--burgundy)] text-white border-[var(--teal)] shadow-sm" : "bg-[var(--sky-soft)] border-[var(--sky)] hover:border-[var(--teal)]"
-                  }`}
-                >
-                  {s}
                 </button>
               ))}
             </div>
-            <button
-              disabled={!slot}
-              onClick={() => setConfirmed(true)}
-              className="ph-button w-full py-2.5 rounded-full text-sm font-semibold text-white bg-[var(--coral)] shadow-md hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
-            >
-              Confirm booking
-            </button>
+          </Card>
+
+          <div className="grid lg:grid-cols-2 gap-5 items-start">
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div><p className="font-semibold text-sm">Morning</p><p className="text-xs text-[var(--ink-soft)]">9:00 AM – 11:00 AM</p></div>
+                <span className="rounded-full px-3 py-1 text-[10px] font-bold" style={{ background: "var(--mint-soft)", color: "var(--burgundy)" }}>5 seats / time</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{MORNING_SLOTS.map((time) => <SlotButton key={time} time={time} />)}</div>
+            </Card>
+
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div><p className="font-semibold text-sm">Afternoon</p><p className="text-xs text-[var(--ink-soft)]">1:00 PM – 4:00 PM</p></div>
+                <span className="rounded-full px-3 py-1 text-[10px] font-bold" style={{ background: "var(--peach-soft)", color: "var(--burgundy)" }}>5 seats / time</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{AFTERNOON_SLOTS.map((time) => <SlotButton key={time} time={time} />)}</div>
+            </Card>
+          </div>
+
+          <Card className="p-5 flex flex-col sm:flex-row items-center justify-between gap-4 bg-[var(--navy)] text-white border-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center"><CalendarCheck size={19} /></div>
+              <div><p className="font-semibold text-sm">{slot ? `Selected: ${slot}` : "Select a time slot"}</p><p className="text-xs text-white/65 mt-1">{chosen.name} · Today</p></div>
+            </div>
+            <button type="button" disabled={!slot} onClick={confirmBooking} className="ph-button w-full sm:w-auto px-7 py-3 rounded-full text-sm font-semibold text-white bg-[var(--coral)] shadow-md hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">Confirm booking</button>
           </Card>
         </div>
       )}
@@ -999,6 +1207,12 @@ function AdminSection({ onLogout }) {
   });
   const [saved, setSaved] = useState(false);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const goHome = () => setActiveView("dashboard");
+    window.addEventListener("carehub:admin-home", goHome);
+    return () => window.removeEventListener("carehub:admin-home", goHome);
+  }, []);
 
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -1383,7 +1597,7 @@ function AdminSection({ onLogout }) {
   const View = activeView === "patients" ? Patients : activeView === "register" ? Register : activeView === "reports" ? Records : Dashboard;
 
   return (
-    <div className="grid lg:grid-cols-[220px_1fr] gap-6 items-start">
+    <div className="grid lg:grid-cols-[220px_minmax(0,1fr)] gap-4 md:gap-5 items-start w-full">
       <aside className="lg:sticky lg:top-6">
         <div className="bg-white rounded-3xl border border-black/5 shadow-[0_12px_35px_rgba(7,18,47,.06)] p-3">
           <p className="text-[10px] uppercase tracking-[.18em] font-bold text-[var(--ink-soft)] px-3 py-2">Workspace</p>
@@ -1493,11 +1707,11 @@ function LoginPage({ onLogin }) {
 
           <form onSubmit={submit} className="space-y-4">
             <div className="ph-login-field">
-              <label className="text-xs font-semibold text-[var(--ink-soft)] block mb-1"></label>
+              <label className="text-xs font-semibold text-[var(--ink-soft)] block mb-1">Email</label>
               <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder={role === "admin" ? "admin@carehub.demo" : "patient@carehub.demo"} className="w-full rounded-xl px-4 py-3 text-sm bg-[var(--sky-soft)] outline-none border border-transparent focus:border-[var(--burgundy)] transition" />
             </div>
             <div className="ph-login-field">
-              <label className="text-xs font-semibold text-[var(--ink-soft)] block mb-1"></label>
+              <label className="text-xs font-semibold text-[var(--ink-soft)] block mb-1">Password</label>
               <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required placeholder="Enter password" className="w-full rounded-xl px-4 py-3 text-sm bg-[var(--sky-soft)] outline-none border border-transparent focus:border-[var(--burgundy)] transition" />
             </div>
 
@@ -1586,15 +1800,15 @@ function App() {
     return (
       <div className="ph-root min-h-screen">
         <Fonts />
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-5 md:py-7">
+        <div className="w-full max-w-none px-3 md:px-5 lg:px-6 py-4 md:py-5">
           <header className="flex items-center justify-between mb-6 md:mb-8 bg-white/75 backdrop-blur rounded-3xl border border-black/5 px-4 md:px-5 py-3 shadow-[0_10px_30px_rgba(7,18,47,.05)]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[var(--burgundy)] flex items-center justify-center text-white font-bold ph-head ph-brand-dot">+</div>
+            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("carehub:admin-home"))} className="flex items-center gap-3 text-left group">
+              <div className="w-10 h-10 shrink-0 rounded-2xl bg-[var(--burgundy)] flex items-center justify-center text-white font-bold ph-head ph-brand-dot group-hover:scale-105 transition">+</div>
               <div>
                 <p className="ph-head text-xl font-bold">CareHub</p>
                 <p className="text-xs text-[var(--ink-soft)]">Administrator workspace</p>
               </div>
-            </div>
+            </button>
             <div className="flex items-center gap-2">
               <Pill_ tone="mint"><ShieldCheck size={13} className="inline mr-1" /> Admin</Pill_>
               <button onClick={() => setRole(null)} className="px-3 py-2 rounded-xl text-sm font-semibold text-[var(--ink-soft)] hover:bg-[var(--sky-soft)] transition flex items-center gap-2">
@@ -1631,10 +1845,10 @@ function App() {
 
       <div className="flex">
         <aside className="hidden md:flex flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-black/5 bg-white/60 backdrop-blur px-5 py-6">
-          <div className="flex items-center gap-2 mb-8 px-2">
-            <div className="w-9 h-9 rounded-2xl bg-[var(--burgundy)] flex items-center justify-center text-white font-bold ph-head ph-brand-dot">+</div>
+          <button type="button" onClick={() => goTab("home")} className="flex items-center gap-2 mb-8 px-2 text-left group">
+            <div className="w-9 h-9 rounded-2xl bg-[var(--burgundy)] flex items-center justify-center text-white font-bold ph-head ph-brand-dot group-hover:scale-105 transition">+</div>
             <span className="ph-head font-semibold text-lg">CareHub</span>
-          </div>
+          </button>
           <nav className="flex-1 space-y-1">
             {NAV.map((n) => {
               const Icon = n.icon;
@@ -1664,10 +1878,10 @@ function App() {
         </aside>
 
         <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-white/80 backdrop-blur border-b border-black/5 flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
+          <button type="button" onClick={() => goTab("home")} className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-[var(--burgundy)] flex items-center justify-center text-white font-bold ph-head text-sm">+</div>
             <span className="ph-head font-semibold">CareHub</span>
-          </div>
+          </button>
           <button onClick={() => setMobileOpen(true)}><Menu size={22} /></button>
         </div>
 
