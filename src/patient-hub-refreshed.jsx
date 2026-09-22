@@ -417,22 +417,22 @@ function normalizePatient(value) {
 
   const medications = Array.isArray(raw.medications)
     ? raw.medications.map((m, i) => ({
-        id: m?.id ?? i + 1,
-        name: typeof m?.name === "string" && m.name.trim() ? m.name.trim() : "Medicine",
-        dosage: typeof m?.dosage === "string" && m.dosage.trim() ? m.dosage.trim() : "As prescribed",
-        refill: typeof m?.refill === "string" && m.refill.trim() ? m.refill.trim() : "Review with doctor",
-        tone: toneMapSafe(m?.tone, i),
-      }))
+      id: m?.id ?? i + 1,
+      name: typeof m?.name === "string" && m.name.trim() ? m.name.trim() : "Medicine",
+      dosage: typeof m?.dosage === "string" && m.dosage.trim() ? m.dosage.trim() : "As prescribed",
+      refill: typeof m?.refill === "string" && m.refill.trim() ? m.refill.trim() : "Review with doctor",
+      tone: toneMapSafe(m?.tone, i),
+    }))
     : DEFAULT_PATIENT.medications.map((m) => ({ ...m }));
 
   const reports = Array.isArray(raw.reports)
     ? raw.reports.map((r, i) => ({
-        id: r?.id ?? i + 1,
-        name: typeof r?.name === "string" && r.name.trim() ? r.name.trim() : "Medical report",
-        date: typeof r?.date === "string" && r.date.trim() ? r.date.trim() : "Not specified",
-        status: typeof r?.status === "string" && r.status.trim() ? r.status.trim() : "Pending review",
-        value: typeof r?.value === "string" && r.value.trim() ? r.value.trim() : "See report",
-      }))
+      id: r?.id ?? i + 1,
+      name: typeof r?.name === "string" && r.name.trim() ? r.name.trim() : "Medical report",
+      date: typeof r?.date === "string" && r.date.trim() ? r.date.trim() : "Not specified",
+      status: typeof r?.status === "string" && r.status.trim() ? r.status.trim() : "Pending review",
+      value: typeof r?.value === "string" && r.value.trim() ? r.value.trim() : "See report",
+    }))
     : DEFAULT_PATIENT.reports.map((r) => ({ ...r }));
 
   return {
@@ -590,9 +590,8 @@ function Toggle({ checked, onChange }) {
   return (
     <button
       onClick={onChange}
-      className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors duration-200 ${
-        checked ? "bg-[var(--burgundy)] justify-end" : "bg-gray-200 justify-start"
-      }`}
+      className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors duration-200 ${checked ? "bg-[var(--burgundy)] justify-end" : "bg-gray-200 justify-start"
+        }`}
       aria-pressed={checked}
     >
       <span className="w-5 h-5 bg-white rounded-full shadow" />
@@ -721,7 +720,7 @@ function RemindersSection() {
   const [form, setForm] = useState({ name: "", time: "", meal: "After food" });
 
   useEffect(() => {
-    try { localStorage.setItem("carehub_reminders", JSON.stringify(items)); } catch {}
+    try { localStorage.setItem("carehub_reminders", JSON.stringify(items)); } catch { }
   }, [items]);
 
   const openAdd = () => {
@@ -845,7 +844,7 @@ function AppointmentSection() {
   });
 
   useEffect(() => {
-    try { localStorage.setItem("carehub_bookings", JSON.stringify(bookings)); } catch {}
+    try { localStorage.setItem("carehub_bookings", JSON.stringify(bookings)); } catch { }
   }, [bookings]);
 
   const chosen = DOCTORS.find((d) => d.id === doctor);
@@ -894,11 +893,10 @@ function AppointmentSection() {
         type="button"
         disabled={disabled}
         onClick={() => setSlot(time)}
-        className={`text-left rounded-2xl border p-3 transition-all duration-200 ${
-          slot === time ? "bg-[var(--burgundy)] text-white border-[var(--burgundy)] shadow-md -translate-y-0.5" :
-          disabled ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-75" :
-          "bg-white border-[var(--sky)] hover:border-[var(--burgundy)] hover:-translate-y-0.5 hover:shadow-sm"
-        }`}
+        className={`text-left rounded-2xl border p-3 transition-all duration-200 ${slot === time ? "bg-[var(--burgundy)] text-white border-[var(--burgundy)] shadow-md -translate-y-0.5" :
+            disabled ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-75" :
+              "bg-white border-[var(--sky)] hover:border-[var(--burgundy)] hover:-translate-y-0.5 hover:shadow-sm"
+          }`}
       >
         <p className="text-sm font-bold">{time}</p>
         <p className={`text-[10px] mt-1 ${slot === time ? "text-white/80" : "text-[var(--ink-soft)]"}`}>
@@ -1121,8 +1119,8 @@ function ShopSection() {
 function DietSection() {
   const conditionKey =
     getStoredPatient().condition?.toLowerCase().includes("diabet") ? "Diabetes" :
-    getStoredPatient().condition?.toLowerCase().includes("hypertension") ? "Hypertension" :
-    "General";
+      getStoredPatient().condition?.toLowerCase().includes("hypertension") ? "Hypertension" :
+        "General";
 
   const plan = DIET_PLANS[conditionKey] || DIET_PLANS.General;
   const customDiet = (getStoredPatient().diet || "").trim();
@@ -1594,8 +1592,14 @@ function AdminSection({ onLogout }) {
     </div>
   );
 
-  const View = activeView === "patients" ? Patients : activeView === "register" ? Register : activeView === "reports" ? Records : Dashboard;
-
+  const view =
+    activeView === "patients"
+      ? Patients()
+      : activeView === "register"
+        ? Register()
+        : activeView === "reports"
+          ? Records()
+          : Dashboard();
   return (
     <div className="grid lg:grid-cols-[220px_minmax(0,1fr)] gap-4 md:gap-5 items-start w-full">
       <aside className="lg:sticky lg:top-6">
@@ -1609,9 +1613,8 @@ function AdminSection({ onLogout }) {
                 <button
                   key={n.id}
                   onClick={() => setActiveView(n.id)}
-                  className={`ph-nav-item w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold ${
-                    active ? "ph-active bg-[var(--mint-soft)] text-[var(--ink)]" : "text-[var(--ink-soft)] hover:bg-[var(--sky-soft)]"
-                  }`}
+                  className={`ph-nav-item w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold ${active ? "ph-active bg-[var(--mint-soft)] text-[var(--ink)]" : "text-[var(--ink-soft)] hover:bg-[var(--sky-soft)]"
+                    }`}
                 >
                   <Icon size={18} className="ph-nav-icon" />
                   {n.label}
@@ -1631,7 +1634,7 @@ function AdminSection({ onLogout }) {
 
       <section className="min-w-0">
         <div key={activeView} className="ph-page">
-          <View />
+          {view}
         </div>
       </section>
     </div>
@@ -1857,9 +1860,8 @@ function App() {
                 <button
                   key={n.id}
                   onClick={() => goTab(n.id)}
-                  className={`ph-nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium transition ${
-                    isActive ? "ph-active bg-[var(--mint-soft)] text-[var(--ink)]" : "text-[var(--ink-soft)] hover:bg-gray-50"
-                  }`}
+                  className={`ph-nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium transition ${isActive ? "ph-active bg-[var(--mint-soft)] text-[var(--ink)]" : "text-[var(--ink-soft)] hover:bg-gray-50"
+                    }`}
                 >
                   <Icon size={18} className="ph-nav-icon" />
                   {n.label}
